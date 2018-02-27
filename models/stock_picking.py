@@ -6,10 +6,13 @@ from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 from ..common import check_many2one_validity
+from . import common
 
 
 class StockPicking(models.Model):
     _inherit = 'stock.picking'
+
+    priority = fields.Selection(selection=common.PRIORITIES)
 
     # compute previous and next pickings
     u_prev_picking_ids = fields.One2many(
@@ -57,7 +60,7 @@ class StockPicking(models.Model):
             raise ValidationError(_('Wrong state of picking %s') % self.state)
 
     def add_unexpected_parts(self, product_quantities):
-        """ By default allow to overreceive and it will be extended in 
+        """ By default allow to overreceive and it will be extended in
             a module where the picking type has a flag to decide this.
         """
         self.ensure_one()
@@ -80,7 +83,7 @@ class StockPicking(models.Model):
 
                 new_ml = ml._split()
                 new_move_lines |= new_ml
-        # These are unexpected so the ordered_qty should be        
+        # These are unexpected so the ordered_qty should be
         new_move_lines.write({"ordered_qty": 0})
 
         return new_move_lines
@@ -451,7 +454,7 @@ class StockPicking(models.Model):
             ]
             if picking_ids is not None:
                 domain.append(('id', 'in', picking_ids))
-            order='priority desc, scheduled_date, id'
+            order = 'priority desc, scheduled_date, id'
             # TODO: add bulky field
             #if bulky is not None:
             #    domain.append(('u_contains_bulky', '=', bulky))
@@ -533,3 +536,18 @@ class StockPicking(models.Model):
             res.append(picking._prepare_info(priorities, **kwargs))
 
         return res
+
+    def get_priorities(self):
+        """ Return a list of dicts containing the priorities of the
+            'Picking' priority group, in the following format:
+                [
+                    {
+                        'name': 'Picking',
+                        'priorities': [
+                            OrderedDict([('id', '2'), ('name', 'Urgent')]),
+                            OrderedDict([('id', '1'), ('name', 'Normal')])
+                        ]
+                    }
+                ]
+        """
+        return [common.PRIORITY_GROUPS[common.PriorityGroups.Picking]]
